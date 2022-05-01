@@ -2,7 +2,7 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
-const port = process.env.PORT
+const port = process.env.PORT || 3002
 const fileUpload = require('express-fileupload')
 const body = require("body-parser");
 const https = require("https");
