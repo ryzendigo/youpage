@@ -29,12 +29,8 @@ app.use(fileUpload({
 
 //frontend
 // Serve Dist folder
-app.use(express.static(__dirname + '/dist'));
-app.get('*', (req, res) => res.sendFile(__dirname + '/dist/index.html'));
+app.use(express.static(__dirname + '/client/dist'));
 
-// app.get('/', (req, res) => {
-//   res.send('cca2s3766659 Backend Working');
-// });
 
 
 // routes ---------------------------------
