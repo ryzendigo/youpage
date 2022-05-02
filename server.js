@@ -30,7 +30,7 @@ app.use(fileUpload({
 //frontend
 // Serve Dist folder
 app.use(express.static(__dirname + '/client/dist'));
-app.get('/', (req, res) => res.sendFile(__dirname + '/client/dist/index.html'));
+app.get('*', (req, res) => res.sendFile(__dirname + '/client/dist/index.html'));
 
 
 // routes ---------------------------------
