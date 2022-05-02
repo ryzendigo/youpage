@@ -27,7 +27,14 @@ app.use(fileUpload({
   limits: { fileSize: 50 * 1024 * 1024 }
 }))
 
+//frontend
+// Serve Dist folder
+app.use(express.static(__dirname + '/dist'));
+app.get('*', (req, res) => res.sendFile(__dirname + '/dist/index.html'));
 
+// app.get('/', (req, res) => {
+//   res.send('cca2s3766659 Backend Working');
+// });
 
 
 // routes ---------------------------------
