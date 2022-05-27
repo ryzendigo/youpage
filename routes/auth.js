@@ -19,6 +19,7 @@ let foundUser = null;
 
 // GET /signIn ---------------------------------------
 router.post('/signin', (req, res) => {
+  
   // 1. check if email and passwore are empty
   if( !req.body.email || !req.body.password ){     
     return res.status(400).json({message: "Please provide email and password"})
@@ -43,7 +44,7 @@ function checkUser(email) {
           if(data.Items[user].email === email){
             // console.log(data.Items[user].email)
             foundUser = data.Items[user]
-            console.log("Found User: "+ foundUser.email)
+            // console.log("Found User: "+ foundUser.email)
             verifyUser(foundUser)
             exists = true
           } 
@@ -83,8 +84,13 @@ function checkUser(email) {
             return res.json({
               accessToken: accessToken,
               email: user.email,
-              userName: user.user_name,
-              subscriptionList: user.subscriptionList
+              firstName: user.firstName,
+              lastName: user.lastName,
+              phone: user.phone,
+              location: user.location,
+              bio: user.bio,
+              friendList: user.friendList,
+              avatar: user.avatar
             })
         }else{
             // Password didn't match!
@@ -151,29 +157,6 @@ router.get('/validate', (req, res) => {
     
     }
 
-  //   const params = {
-  //     TableName: 'login',
-  //     Key:
-  //     {
-  //         email: req.body.email
-  //     },
-  //     AttributesToGet: [
-  //        'email',
-  //        'user_name',
-  //        'password'
-  //     ]
-  // }
-  
-
-  //     if(!Utils.userExists(req.body.email)){
-  //       return res.status(400).json({message: 'No account found'})
-  //     } else{
-  //       dynamoDB
-  //         .get(params)
-  //         .promise()
-  //         .then(data => validateUser(data.Item))
-  //         .catch( console.error)
-  //     }
 
       async function validateUser(user){
         // user exists, now check password
@@ -203,32 +186,7 @@ router.get('/validate', (req, res) => {
 
 })
 
-// class Auth{
 
-//   //get user method
-//   async function getUser(email){
-
-//     const params = {
-//       TableName: 'login',
-//       Key:
-//       {
-//           email: email
-//       },
-//       AttributesToGet: [
-//          'email',
-//          'user_name',
-//          'password',
-//          'subscriptionList'
-//       ]
-//   }
-//     var exists = true
-//     console.log("exists " + exists)
-//     let result = await docClient.get(params).promise().catch(console.error)  
-
-//     return result.Item
-    
-//   }
-// }
 
   
 module.exports = router

@@ -1,7 +1,7 @@
 // Load the AWS SDK for Node.js
 var AWS = require('aws-sdk');
 
-const a2 = require('./a2.json')
+const sampleUsers = require('./sampleUsers.json')
 
 // Set the region 
 AWS.config.update({region: 'us-east-1'});
@@ -11,25 +11,26 @@ var ddb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
 
 var docClient = new AWS.DynamoDB.DocumentClient({apiVersion: '2012-08-10'});
 
-const songs = a2.songs
+const users = sampleUsers.users
 
-console.log(songs.length)
+console.log(users.length)
 
-        for(const song in songs){
-           
-          // console.log(songs[song].title)
+        for(const user in users){
+          
+          
 
               var params = {
-                TableName: 'music',
+                TableName: 'login',
                 Item: {
-                    // 'RANGEKEY': songs[song].title,
-                    // 'HASHKEY': songs[song].artist,
-                    'title': songs[song].title,
-                    'artist': songs[song].artist,
-                    'year': songs[song].year,
-                    'web_url': songs[song].web_url,
-                    'img_url': songs[song].img_url,
-                    'image': "https://a2bucket.s3.amazonaws.com/" + songs[song].img_url
+                    
+                    'firstName': users[user].firstName,
+                    'lastName': users[user].lastName,
+                    'phone': users[user].phone,
+                    'email': users[user].email,
+                    'location': users[user].location,
+                    'password': users[user].password,
+                    'bio': users[user].bio,
+                    'avatar': users[user].avatar
                 }
             };
 

@@ -2,11 +2,19 @@ const express = require('express')
 const router = express.Router()
 const Utils = require('./../utils')
 const path = require('path')
+const fs = require('fs')
+const util = require('util')
+const unlinkFile = util.promisify(fs.unlink)
+const { uploadFile, getFileStream } = require('./../s3')
 
 // Load the AWS SDK for Node.js
 var AWS = require('aws-sdk');
 // Set the region 
-AWS.config.update({region: 'us-east-1'});
+AWS.config.update({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: 'us-east-1'
+});
 
 // Create DynamoDB document client
 const dynamoDB = new AWS.DynamoDB.DocumentClient()
@@ -43,38 +51,32 @@ router.get('/:email', Utils.authenticateToken, (req, res) => {
     },
     AttributesToGet: [
       'email',
-      'user_name',
+      'firstName',
+      'lastName',
+      'phone',
+      'location',
       'password',
-      'subscriptionList'
+      'friendList',
+      'bio',
+      'avatar'
    ]
   })
   .promise()
   .then(data => res.json({
     email: data.Item.email,
-    userName: data.Item.user_name,
+    firstName: data.Item.firstName,
+    lastName: data.Item.lastName,
+    phone: data.Item.phone,
+    location: data.Item.location,
     password: data.Item.password,
-    subscriptionList: data.Item.subscriptionList
+    friendList: data.Item.friendList,
+    avatar: data.Item.avatar,
+    bio: data.Item.bio
   }))
   
 
 })
 
-
-// function appendSong (email, song) {
-//   return dynamoDB.update({
-//     TableName: 'login',
-//     Key: { email: email },
-//     ReturnValues: 'ALL_NEW',
-//     UpdateExpression: 'set #subscriptionList = list_append(if_not_exists(#subscriptionList, :empty_list), :song)',
-//     ExpressionAttributeNames: {
-//       '#subscriptionList': 'subscriptionList'
-//     },
-//     ExpressionAttributeValues: {
-//       ':song': [song],
-//       ':empty_list': []
-//     }
-//   }).promise()
-// }
 
 
 
@@ -199,88 +201,240 @@ router.put('/unsubscribe/', Utils.authenticateToken, (req, res) => {
   // }).then(console.log)
 })
 
+//PUT addFriends ------------------------------------------------------
+router.put('/addFriend/:user1/:user2', Utils.authenticateToken, (req, res) => {
+    // validate request
+  // if(!req.body) return res.status(400).send("Task content can't be empty")
+
+  //update first user
+  //Get current users details and add to second users friend list
+  dynamoDB
+  .get({
+    TableName: "login",
+    Key: {
+      email: req.params.user1,
+    },
+    AttributesToGet: [
+      'email',
+      'avatar',
+      'bio',
+      'firstName',
+      'lastName',
+      'location',
+      'phone'
+   ]
+  })
+  .promise()
+  .then(data => (
+    dynamoDB.update({
+    TableName: 'login',
+    Key: { email: req.params.user2 },
+    ReturnValues: 'ALL_NEW',
+    UpdateExpression: 'set #friendList = list_append(if_not_exists(#friendList, :empty_list), :user)',
+    ExpressionAttributeNames: {
+      '#friendList': 'friendList'
+    },
+    ExpressionAttributeValues: {
+      ':user': [{
+        email: data.Item.email,
+        avatar: data.Item.avatar,
+        bio: data.Item.bio,
+        firstName: data.Item.firstName,
+        lastName: data.Item.lastName,
+        location: data.Item.location,
+        phone: data.Item.phone,
+        
+      }],
+      ':empty_list': []
+    }
+  }).promise()
+  .then(data => {
+    console.log(data.Attributes.friendList) 
+  })))
+
+  //now get second users details and add to current users friendlist then return friendslist
+  dynamoDB
+  .get({
+    TableName: "login",
+    Key: {
+      email: req.params.user2,
+    },
+    AttributesToGet: [
+      'email',
+      'avatar',
+      'bio',
+      'firstName',
+      'lastName',
+      'location',
+      'phone'
+   ]
+  })
+  .promise()
+  .then(data => (
+    dynamoDB.update({
+    TableName: 'login',
+    Key: { email: req.params.user1 },
+    ReturnValues: 'ALL_NEW',
+    UpdateExpression: 'set #friendList = list_append(if_not_exists(#friendList, :empty_list), :user)',
+    ExpressionAttributeNames: {
+      '#friendList': 'friendList'
+    },
+    ExpressionAttributeValues: {
+      ':user': [{
+        email: data.Item.email,
+        avatar: data.Item.avatar,
+        bio: data.Item.bio,
+        firstName: data.Item.firstName,
+        lastName: data.Item.lastName,
+        location: data.Item.location,
+        phone: data.Item.phone,
+      }],
+      ':empty_list': []
+    }
+  }).promise()
+  .then(data => {
+    console.log(data.Attributes.friendList) 
+    res.json(data.Attributes.friendList) 
+  })))
+
+})
+
 
 // PUT - update user ---------------------------------------------
 router.put('/:email', Utils.authenticateToken, (req, res) => {
   // validate request
   if(!req.body) return res.status(400).send("Task content can't be empty")
   
-  dynamoDB
-  .update({
-    TableName: "login",
-    Key: {
-      email: req.params.email,
-    },
-    UpdateExpression: 'set #user_name = :user_name', 
-    ExpressionAttributeNames: {
+  if(req.body.avatar){
+    dynamoDB
+      .update({
+        TableName: "login",
+        Key: {
+          email: req.params.email,
+        },
+        UpdateExpression: 'set #firstName = :firstName, #lastName = :lastName, #phone = :phone, #location = :location, #bio = :bio, #avatar = :avatar', 
+        ExpressionAttributeNames: {
+          
+          '#firstName': 'firstName',
+          '#lastName': 'lastName',
+          '#phone': 'phone',
+          '#location': 'location',
+          '#bio': 'bio',
+          '#avatar': 'avatar'
+        },
+        ExpressionAttributeValues: {
+          
+          ":firstName": req.body.firstName,
+          ":lastName": req.body.lastName,
+          ":phone": req.body.phone,
+          ":location": req.body.location,
+          ":bio": req.body.bio,
+          ":avatar": req.body.avatar,
+        },
+      })
+      .promise()
+      .then(
+        data => console.log(data.Attributes)
+        )
+
+      //Get updated user and return user
+      dynamoDB
+        .get({
+          TableName: "login",
+          Key: {
+            email: req.params.email, 
+          },
+          AttributesToGet: [
+            'email',
+            'firstName',
+            'lastName',
+            'phone',
+            'location',
+            'password',
+            'friendList',
+            'bio',
+            'avatar'
+         ]
+        })
+        .promise()
+        .then(data => res.json({
+          email: data.Item.email,
+          firstName: data.Item.firstName,
+          lastName: data.Item.lastName,
+          phone: data.Item.phone,
+          location: data.Item.location,
+          password: data.Item.password,
+          friendList: data.Item.friendList,
+          avatar: data.Item.avatar,
+          bio: data.Item.bio
+        }))
+  } else {
+    dynamoDB
+    .update({
+      TableName: "login",
+      Key: {
+        email: req.params.email,
+      },
+      UpdateExpression: 'set #firstName = :firstName, #lastName = :lastName, #phone = :phone, #location = :location, #bio = :bio', 
+      ExpressionAttributeNames: {
+        
+        '#firstName': 'firstName',
+        '#lastName': 'lastName',
+        '#phone': 'phone',
+        '#location': 'location',
+        '#bio': 'bio'
+        
+      },
+      ExpressionAttributeValues: {
+        
+        ":firstName": req.body.firstName,
+        ":lastName": req.body.lastName,
+        ":phone": req.body.phone,
+        ":location": req.body.location,
+        ":bio": req.body.bio,
+        
+      },
+    })
+    .promise()
+    .then(
+      data => console.log(data.Attributes)
+    )
+    
+    //Get updated user and return user
+    dynamoDB
+    .get({
+      TableName: "login",
+      Key: {
+        email: req.params.email, 
+      },
+      AttributesToGet: [
+        'email',
+        'firstName',
+        'lastName',
+        'phone',
+        'location',
+        'password',
+        'friendList',
+        'bio',
+        'avatar'
+     ]
+    })
+    .promise()
+    .then(data => res.json({
+      email: data.Item.email,
+      firstName: data.Item.firstName,
+      lastName: data.Item.lastName,
+      phone: data.Item.phone,
+      location: data.Item.location,
+      password: data.Item.password,
+      friendList: data.Item.friendList,
+      avatar: data.Item.avatar,
+      bio: data.Item.bio
+    }))
+  }
+
       
-      '#user_name': 'user_name',
-    },
-    ExpressionAttributeValues: {
-      
-      ":user_name": req.body.userName
-    },
-  })
-  .promise()
-  .then(data => res.json(data.Attributes))
   
-
-  // async function updateUser(){ 
-
-  //   if(!Utils.docExists('users', req.params.id)){
-  //     res.status(500).json({
-  //       message: 'Problem updating user',
-  //       error: err
-  //     })
-  //   } else {
-
-  //     const user = await db.collection('users').doc(req.params.id).get()
-  //     if(user.data().password != req.body.oldPassword){
-  //       return res.status(400).send("The old password is incorrect!")
-  //     }
-
-  //     // let avatarFilename = null
-
-  //           // if avatar image exists, upload!
-  //       if(req.files && req.files.avatar){
-
-  //         Images.sendUploadToGCS(req.files.avatar)
-
-  //         db.collection('users').doc(req.params.id).set({
-  //           id: req.body.id,
-  //           userName: req.body.userName,
-  //           avatar: Images.getPublicUrl(req.files.avatar),   
-  //           password: req.body.password   
-  //       }, {merge: true})
-  //         // // upload avater image then update user
-  //         // let uploadPath = path.join(__dirname, '..', 'public', 'images')
-  //         // Utils.uploadFile(req.files.avatar, uploadPath, (uniqueFilename) => {
-  //         //   avatarFilename = uniqueFilename
-  //         //   // update user with all fields including avatar
-  //         //   db.collection('users').doc(req.body.id).set({
-  //         //     id: req.body.id,
-  //         //     userName: req.body.userName,
-  //         //     avatar: avatarFilename,
-                      
-  //         //   }, {merge: true})
-  //         // })
-  //       }else{
-  //         // update user without avatar
-  //         db.collection('users').doc(req.body.id).set({
-  //             id: req.body.id,
-  //             userName: req.body.userName,
-  //             password: req.body.password      
-  //         }, {merge: true})
-  //       }
-
-  //       const updatedUser = await db.collection('users').doc(req.params.id).get()
-  //       res.json(updatedUser.data())
-
-  //   }
-  // }
-  
-  // updateUser()
- 
 
 })
 
@@ -331,55 +485,34 @@ checkUser(req.body.email)
   }
 
   async function createUser(){
+
+    
+    
+
     await dynamoDB
     .put({
       Item: {
         email: req.body.email,
-        user_name: req.body.userName,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phone: '0000000000',
+        location: 'Unknown',
+        bio: 'User has not entered a bio..',
         password: Utils.hashPassword(req.body.password),
-        subscriptionList: []
+        avatar: req.body.avatar,
+        friendList: []
       },
       TableName: "login",
     })
     .promise()
     .then(data => res.status(201).json(data.Attributes))
     .catch(console.error)
+    
   }
-
-//   const params = {
-//     TableName: 'login',
-//     Key:
-//     {
-//         email: req.body.email
-//     },
-//     AttributesToGet: [
-//        'email',
-//        'user_name',
-//        'password'
-//     ]
-// }
-
-//     if(!Utils.userExists(req.body.email)){
-//       return res.status(400).json({
-//         message: "Email is in use, use a different Email"
-//       })
-//     } else {
-//           dynamoDB
-//       .put({
-//         Item: {
-//           email: req.body.email,
-//           user_name: req.body.userName,
-//           password: Utils.hashPassword(req.body.password),
-//           subscriptionList: ['test song', 'test song2']
-//         },
-//         TableName: "login",
-//       })
-//       .promise()
-//       .then(data => res.status(201).json(data.Attributes))
-//       .catch(console.error)
-//         }
 
 
 })
+
+
 
 module.exports = router

@@ -14,7 +14,7 @@ AWS.config.update({region: 'us-east-1'});
 
 var s3 = new AWS.S3({
   apiVersion: "2006-03-01",
-  params: { Bucket: 'a2bucket' }
+  params: { Bucket: 'a3bucket-s3766659' }
 });
 
 
@@ -34,7 +34,7 @@ class downloadImages{
       const blob = await res.buffer()
 
       const uploadedImage = await s3.upload({
-        Bucket: 'a2bucket',
+        Bucket: 'a3bucket-s3766659',
         Key: imageURL,
         Body: blob,
         ACL:'public-read'
